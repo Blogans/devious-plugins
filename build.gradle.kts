@@ -29,7 +29,6 @@ allprojects {
     apply<JavaPlugin>()
     apply(plugin = "java-library")
     apply(plugin = "kotlin")
-    apply(plugin = "checkstyle")
 
     repositories {
         mavenCentral()
@@ -44,6 +43,7 @@ allprojects {
         compileOnly("net.unethicalite:runelite-api:$unethicaliteVersion+")
         compileOnly("net.unethicalite:runelite-client:$unethicaliteVersion+")
         compileOnly("net.unethicalite.rs:runescape-api:$unethicaliteVersion+")
+        implementation(group = "io.netty", name = "netty-all", version = "4.1.54.Final")
 
         compileOnly(Libraries.guice)
         compileOnly(Libraries.javax)
