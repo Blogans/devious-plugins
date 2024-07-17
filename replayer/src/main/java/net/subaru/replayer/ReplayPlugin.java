@@ -187,10 +187,10 @@ public class ReplayPlugin extends Plugin
 	}
 
 	public boolean togglePause() {
-		/*if (recordingReplayer != null) {
+		if (recordingReplayer != null) {
 			return recordingReplayer.togglePause();
 		}
-		 */
+
 		return false;
 	}
 
