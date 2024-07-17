@@ -11,7 +11,6 @@ import java.nio.file.Path;
 @Slf4j
 public class ReplayClientInitializer extends ChannelInitializer<SocketChannel> {
     private final ReplayPlugin replayPlugin;
-
     private Path recordingPath;
 
     public ReplayClientInitializer(ReplayPlugin replayPlugin) {
@@ -24,11 +23,8 @@ public class ReplayClientInitializer extends ChannelInitializer<SocketChannel> {
             throw new RuntimeException("No recording path set");
         }
         ChannelPipeline pipeline = socketChannel.pipeline();
-        pipeline.addLast("handler", new ReplayClientHandler(this.replayPlugin, this.recordingPath));
-    }
-
-    public Path getRecordingPath() {
-        return recordingPath;
+        ReplayClientHandler handler = new ReplayClientHandler(this.replayPlugin, this.recordingPath);
+        pipeline.addLast("handler", handler);
     }
 
     public void setRecordingPath(Path recordingPath) {

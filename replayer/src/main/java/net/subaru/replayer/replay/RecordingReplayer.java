@@ -20,9 +20,6 @@ public class RecordingReplayer extends Thread {
         this.channel = channel;
     }
 
-    public void setSpeedMultiplier(double multiplier) {
-        this.speedMultiplier = multiplier;
-    }
 
     @Override
     public void run() {

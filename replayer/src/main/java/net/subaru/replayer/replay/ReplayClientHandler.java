@@ -16,11 +16,8 @@ public class ReplayClientHandler extends SimpleChannelInboundHandler<ByteBuf> {
     public static final int LOGIN_TYPE = 16;
 
     private final ReplayPlugin replayPlugin;
-
     private final Path recordingPath;
-
     private LoginState loginState = LoginState.CONNECT;
-
     private RecordingParser recordingParser;
     private RecordingReplayer recordingReplayer;
 
@@ -40,16 +37,20 @@ public class ReplayClientHandler extends SimpleChannelInboundHandler<ByteBuf> {
         log.info("Client connected: {}", ctx.channel());
         this.recordingParser = RecordingParser.load(this.recordingPath);
         this.recordingReplayer = new RecordingReplayer(this.recordingParser, ctx.channel());
+        this.replayPlugin.setRecordingReplayer(this.recordingReplayer);
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         log.info("Client disconnected: {}", ctx.channel());
+        if (this.recordingReplayer != null) {
+            this.recordingReplayer.stop();
+        }
+        this.replayPlugin.setRecordingReplayer(null);
     }
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) throws Exception {
-//        log.info("\n{}", ByteBufUtil.prettyHexDump(msg));
         if (this.loginState == LoginState.CONNECT) {
             if (msg.getByte(0) == LOGIN_CONNECTION_TYPE) {
                 ctx.writeAndFlush(Unpooled.wrappedBuffer(new byte[9]));
@@ -68,6 +69,5 @@ public class ReplayClientHandler extends SimpleChannelInboundHandler<ByteBuf> {
                 this.loginState = LoginState.LOGGED_IN;
             }
         }
-
     }
 }
