@@ -1,6 +1,7 @@
 package net.subaru.replayer;
 
 import com.google.inject.Provides;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.events.BeforeRender;
@@ -64,6 +65,8 @@ public class ReplayPlugin extends Plugin
 	private boolean isRecording;
 	private boolean isProxyServerRunning;
 	private Path recordingFolder;
+
+	@Getter
 	private RecordingReplayer recordingReplayer;
 	private ReplayClientInitializer replayClientInitializer;
 	private RecordClientInitializer recordClientInitializer;
@@ -194,25 +197,22 @@ public class ReplayPlugin extends Plugin
 		return false;
 	}
 
-	public void stepBackward() {
-		/*if (recordingReplayer != null) {
-			recordingReplayer.stepBackward();
-		}
-		 */
-	}
-
 	public void stepForward() {
-		/*if (recordingReplayer != null) {
+		if (recordingReplayer != null) {
 			recordingReplayer.stepForward();
 		}
-		 */
+	}
+
+	public void stepBackward() {
+		if (recordingReplayer != null) {
+			//recordingReplayer.stepBackward();
+		}
 	}
 
 	public void setReplaySpeed(double speed) {
-		/*if (recordingReplayer != null) {
+		if (recordingReplayer != null) {
 			recordingReplayer.setSpeedMultiplier(speed);
 		}
-		 */
 	}
 
 	@Subscribe

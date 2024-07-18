@@ -4,6 +4,8 @@ import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.components.FlatTextField;
 import net.subaru.replayer.ReplayPlugin;
+import net.subaru.replayer.replay.RecordingReplayer;
+import net.unethicalite.client.Static;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -133,6 +135,18 @@ public class Panel extends PluginPanel {
         startStopButton.addActionListener(e -> {
             boolean isRunning = plugin.toggleProxyServer();
             startStopButton.setText(isRunning ? "Stop" : "Start");
+
+            RecordingReplayer replayer = plugin.getRecordingReplayer();
+
+            if (replayer == null || !replayer.isPaused())
+            {
+                return;
+            }
+
+            String selectedSpeed = (String) speedComboBox.getSelectedItem();
+            double speed = Double.parseDouble(selectedSpeed.replace("x", ""));
+
+            replayer.setSpeedMultiplier(speed);
         });
 
         pauseResumeButton.addActionListener(e -> {
@@ -140,13 +154,33 @@ public class Panel extends PluginPanel {
             pauseResumeButton.setText(isPaused ? "Resume" : "Pause");
         });
 
-        backwardButton.addActionListener(e -> plugin.stepBackward());
+        backwardButton.addActionListener(e -> {
+            plugin.stepBackward();
+            RecordingReplayer replayer = plugin.getRecordingReplayer();
 
-        forwardButton.addActionListener(e -> plugin.stepForward());
+            if (replayer == null || !replayer.isPaused())
+            {
+                return;
+            }
+
+            pauseResumeButton.setText("Resume");
+        });
+
+        forwardButton.addActionListener(e -> {
+            plugin.stepForward();
+            RecordingReplayer replayer = plugin.getRecordingReplayer();
+
+            if (replayer == null || !replayer.isPaused())
+            {
+                return;
+            }
+            pauseResumeButton.setText("Resume");
+        });
 
         speedComboBox.addActionListener(e -> {
             String selectedSpeed = (String) speedComboBox.getSelectedItem();
             double speed = Double.parseDouble(selectedSpeed.replace("x", ""));
+            Static.getClient().getLogger().info("Selected speed: {}", speed);
             plugin.setReplaySpeed(speed);
         });
     }
