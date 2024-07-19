@@ -1,5 +1,7 @@
 package net.subaru.replayer;
 
+import net.unethicalite.client.Static;
+
 import java.io.Closeable;
 import java.io.DataOutputStream;
 import java.io.FileNotFoundException;
@@ -23,6 +25,7 @@ public class RecordingWriter implements Closeable {
     public void write(byte[] data) throws IOException {
         this.messagesOutput.write(data);
 
+        Static.getClient().getLogger().info("Writing message: {}", data);
         long now = System.currentTimeMillis();
         this.messageMetaOutput.writeLong(now);
         this.messageMetaOutput.writeInt(data.length);

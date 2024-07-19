@@ -1,8 +1,10 @@
 package net.subaru.replayer.record;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.subaru.replayer.RecordingWriter;
 import net.subaru.replayer.ReplayPlugin;
@@ -18,6 +20,7 @@ public class RecordServerHandler extends SimpleChannelInboundHandler<ByteBuf> {
 
     private final ChannelHandlerContext clientChannel;
 
+    @Getter
     private RecordingWriter recordingWriter;
 
     private int[] initialIsaac;
@@ -51,13 +54,16 @@ public class RecordServerHandler extends SimpleChannelInboundHandler<ByteBuf> {
         int startIndex = msg.readerIndex();
 
         byte[] data = new byte[msg.readableBytes()];
+        //log.info("Server read: {}", ByteBufUtil.getBytes(msg));
         msg.readBytes(data);
 
         msg.readerIndex(startIndex);
 
+        log.info("Server read");
         this.clientChannel.writeAndFlush(msg.retain());
 
-//        log.info("\n{}", ByteBufUtil.prettyHexDump(msg));
+        //log.info("Received Server Packet: {}", );
+        //log.info("\n{}", ByteBufUtil.prettyHexDump(msg));
 
         if (this.recordingWriter != null) {
             if (!this.recordingWriter.isIsaacWritten()) {

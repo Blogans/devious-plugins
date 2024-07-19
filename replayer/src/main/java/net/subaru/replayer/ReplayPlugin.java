@@ -4,7 +4,12 @@ import com.google.inject.Provides;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.GameState;
+import net.runelite.api.LoginState;
 import net.runelite.api.events.BeforeRender;
+import net.runelite.api.events.GameStateChanged;
+import net.runelite.api.events.GameTick;
+import net.runelite.api.packets.PacketWriter;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.game.WorldService;
@@ -16,22 +21,27 @@ import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.WorldUtil;
 import net.runelite.http.api.worlds.World;
 import net.runelite.http.api.worlds.WorldResult;
+import net.runelite.rs.api.RSBufferedNetSocket;
 import net.subaru.replayer.panel.Panel;
 import net.subaru.replayer.record.RecordClientInitializer;
 import net.subaru.replayer.replay.RecordingReplayer;
 import net.subaru.replayer.replay.ReplayClientInitializer;
-import net.unethicalite.api.events.IsaacCipherGenerated;
+import net.unethicalite.api.events.LoginStateChanged;
+import net.unethicalite.api.events.PacketSent;
+import net.unethicalite.api.events.ServerPacketReceived;
 import net.unethicalite.client.Static;
 import org.pf4j.Extension;
 
 import javax.inject.Inject;
-import javax.swing.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.SocketException;
 import java.nio.file.Path;
+import java.util.Arrays;
 
 @Slf4j
 @PluginDescriptor(
@@ -56,6 +66,7 @@ public class ReplayPlugin extends Plugin
 	@Inject
 	private ClientToolbar clientToolbar;
 
+	@Getter
 	private Panel pluginPanel;
 
 	private NavigationButton navigationButton;
@@ -120,11 +131,50 @@ public class ReplayPlugin extends Plugin
 
 	}
 
+	@Subscribe
+	public void onGameTick(GameTick e) throws SocketException {
+		RSBufferedNetSocket rsBufferedNetSocket = (RSBufferedNetSocket) Static.getClient().getPacketWriter().getSocket();
+
+		if (rsBufferedNetSocket != null)
+		{
+			if (rsBufferedNetSocket.getSocket().getSoTimeout() != 0)
+			{
+				rsBufferedNetSocket.getSocket().setSoTimeout(0);
+				log.info("Socket timeout set to {}", rsBufferedNetSocket.getSocket().getSoTimeout());
+			}
+		}
+	}
+
 	@Override
 	protected void shutDown() throws Exception
 	{
 		log.info("Replay plugin stopped!");
 		this.proxyServer.stop();
+	}
+
+	@Subscribe
+	public void onPacketSent(PacketSent e)
+	{
+		log.info("client");
+	}
+
+	@Subscribe
+	public void onLoginStateChanged(LoginStateChanged e)
+	{
+		log.info("Login state changed: {}", e.getState().WRITE_INITIAL_LOGIN_PACKET());
+	}
+
+
+	@Subscribe
+	public void onServerPacketReceived(ServerPacketReceived e) throws IOException {
+		byte[] data = Arrays.copyOfRange(e.getPacketBuffer().getPayload(), 0, e.getLength());
+		//log.info("Server Packet received: {}", e.hexDump());
+		RecordingWriter writer = this.recordClientInitializer.getRecordClientHandler().getRecordServerInitializer().getRecordServerHandler().getRecordingWriter();
+
+		//writer.write(data);
+
+		log.info("server");
+
 	}
 
 	public void setRecordMode(boolean isRecording) {
@@ -187,6 +237,9 @@ public class ReplayPlugin extends Plugin
 
 	public void setRecordingReplayer(RecordingReplayer replayer) {
 		this.recordingReplayer = replayer;
+		if (pluginPanel != null) {
+			pluginPanel.updateReplayInfo();
+		}
 	}
 
 	public boolean togglePause() {
@@ -200,12 +253,6 @@ public class ReplayPlugin extends Plugin
 	public void stepForward() {
 		if (recordingReplayer != null) {
 			recordingReplayer.stepForward();
-		}
-	}
-
-	public void stepBackward() {
-		if (recordingReplayer != null) {
-			//recordingReplayer.stepBackward();
 		}
 	}
 
@@ -301,11 +348,20 @@ public class ReplayPlugin extends Plugin
 		return getStaticField("client", "iq");
 	}
 
+	public Object getSinceLastPacket() throws NoSuchFieldException, ClassNotFoundException, IllegalAccessException {
+		Object netWriter = this.getNetWriter();
+		return getField(netWriter, "ai");
+	}
+
+	public Object getPendingWrites() throws NoSuchFieldException, ClassNotFoundException, IllegalAccessException {
+		Object netWriter = this.getNetWriter();
+		return getField(netWriter, "ae");
+	}
+
 	public Object getNetWriterPacketBuffer() throws NoSuchFieldException, ClassNotFoundException, IllegalAccessException {
 		Object netWriter = this.getNetWriter();
 		return getField(netWriter, "an");
 	}
-
 
 	public void seedIsaac(int[] key) throws NoSuchFieldException, ClassNotFoundException, IllegalAccessException, NoSuchMethodException, InvocationTargetException {
 		Object packetBuffer = getNetWriterPacketBuffer();

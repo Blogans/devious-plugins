@@ -9,6 +9,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.subaru.replayer.ReplayPlugin;
 
@@ -23,6 +24,8 @@ public class RecordClientHandler extends SimpleChannelInboundHandler<ByteBuf> {
 
     private final ThreadFactory threadFactory;
     private final EventLoopGroup eventLoopGroup;
+    @Getter
+    private RecordServerInitializer recordServerInitializer;
 
     private Channel serverChannel;
 
@@ -38,10 +41,11 @@ public class RecordClientHandler extends SimpleChannelInboundHandler<ByteBuf> {
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         log.info("Client connected: {}", ctx.channel());
         if (this.serverChannel == null) {
+            this.recordServerInitializer = new RecordServerInitializer(this.replayPlugin, ctx);
             Bootstrap bootstrap = new Bootstrap()
                     .group(this.eventLoopGroup)
                     .channel(NioSocketChannel.class)
-                    .handler(new RecordServerInitializer(this.replayPlugin, ctx));
+                    .handler(this.recordServerInitializer);
             this.serverChannel = bootstrap.connect(this.address, this.port).sync().channel();
         }
     }
@@ -59,6 +63,8 @@ public class RecordClientHandler extends SimpleChannelInboundHandler<ByteBuf> {
 //        log.info("{}", this.serverChannel);
 //        log.info("\n{}", ByteBufUtil.prettyHexDump(msg));
 
+        //byte[] data = new byte[msg.readableBytes()];
+        //log.info("Received Client: {}", data);
         this.serverChannel.writeAndFlush(msg.retain());
     }
 }

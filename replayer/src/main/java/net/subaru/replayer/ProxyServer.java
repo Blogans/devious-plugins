@@ -9,6 +9,7 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.packets.ServerPacket;
 
 import java.util.concurrent.ThreadFactory;
 
@@ -20,6 +21,7 @@ public class ProxyServer {
     private EventLoopGroup workerGroup;
 
     private ChannelFuture channelFuture;
+
 
     public ProxyServer() {
         this.threadFactory = new DefaultThreadFactory("client");
@@ -37,8 +39,6 @@ public class ProxyServer {
         this.channelFuture = bootstrap
                 .bind(port)
                 .sync();
-
-        log.info("Started on port {}", port);
     }
 
     public void stop() throws InterruptedException {

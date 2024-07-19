@@ -3,12 +3,15 @@ package net.subaru.replayer.record;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.subaru.replayer.ReplayPlugin;
 
 @Slf4j
 public class RecordClientInitializer extends ChannelInitializer<SocketChannel> {
     private final ReplayPlugin replayPlugin;
+    @Getter
+    private RecordClientHandler recordClientHandler;
 
     public RecordClientInitializer(ReplayPlugin replayPlugin) {
         this.replayPlugin = replayPlugin;
@@ -23,7 +26,8 @@ public class RecordClientInitializer extends ChannelInitializer<SocketChannel> {
             throw new RuntimeException("No address to connect to set");
         }
         ChannelPipeline pipeline = socketChannel.pipeline();
-        pipeline.addLast("handler", new RecordClientHandler(this.replayPlugin, this.address, this.port));
+        this.recordClientHandler = new RecordClientHandler(this.replayPlugin, this.address, this.port);
+        pipeline.addLast("handler", recordClientHandler);
     }
 
     public String getAddress() {

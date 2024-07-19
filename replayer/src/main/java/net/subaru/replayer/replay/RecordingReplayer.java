@@ -3,10 +3,22 @@ package net.subaru.replayer.replay;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import jdk.dynalink.beans.StaticClass;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.packets.AbstractSocket;
+import net.runelite.client.plugins.itemstats.stats.Stat;
+import net.runelite.rs.api.RSAbstractSocket;
+import net.runelite.rs.api.RSBufferedNetSocket;
 import net.subaru.replayer.RecordingParser;
+import net.subaru.replayer.ReplayPlugin;
+import net.unethicalite.api.packets.MousePackets;
+import net.unethicalite.client.Static;
 
+import javax.swing.*;
+import java.io.IOException;
+import java.net.Socket;
+import java.net.SocketException;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -17,17 +29,29 @@ public class RecordingReplayer extends Thread {
     private final Channel channel;
     private final MessageSender messageSender;
     private final TimingController timingController;
+    private ReplayPlugin plugin;
 
+    @Getter
     private volatile int messageIndex;
     @Getter
     private volatile boolean isPaused = false;
-
-    public RecordingReplayer(RecordingParser recordingParser, Channel channel) {
+    @Getter
+    private int totalTicks;
+    @Getter
+    private int lastPendingWrites = 0;
+    public RecordingReplayer(RecordingParser recordingParser, ReplayPlugin plugin, Channel channel) {
+        this.plugin = plugin;
         this.channel = channel;
         this.messageBuffer = preloadMessages(recordingParser);
         this.messageSender = new MessageSender(channel);
         this.timingController = new TimingController(messageBuffer);
+        this.totalTicks = messageBuffer.size() - 2;
+        lastPendingWrites = 0;
         log.info("RecordingReplayer initialized with {} messages", messageBuffer.size());
+    }
+
+    public int getCurrentTick() {
+        return Math.max(0, messageIndex - 2);
     }
 
     private List<Message> preloadMessages(RecordingParser recordingParser) {
@@ -47,6 +71,7 @@ public class RecordingReplayer extends Thread {
     public boolean togglePause() {
         isPaused = !isPaused;
         if (isPaused) {
+            lastPendingWrites = Static.getClient().getPacketWriter().getPendingWrites();
             timingController.pauseStarted();
         } else {
             timingController.pauseEnded();
@@ -74,12 +99,51 @@ public class RecordingReplayer extends Thread {
         log.info("Stepped forward to message index: {}", messageIndex);
     }
 
+    public void goToTick(int targetTick) {
+        if (targetTick < 0 || targetTick >= totalTicks) {
+            log.warn("Invalid tick: {}", targetTick);
+            return;
+        }
+
+        int targetIndex = targetTick + 2; // Add 2 to account for login packets
+        setSpeedMultiplier(99999.0); // Set a high speed to quickly reach the target tick
+        while (messageIndex < targetIndex && messageIndex < messageBuffer.size())
+        {
+            stepForward();
+        }
+        setSpeedMultiplier(1.0);
+        if (!isPaused)
+        {
+            togglePause();
+        }
+    }
+
+    public long getReplayLength() {
+        if (messageBuffer.size() < 2)
+        {
+            return 0;
+        }
+        long firstMessageTime = messageBuffer.get(0).getTimestamp();
+        long lastMessageTime = messageBuffer.get(messageBuffer.size() - 1).getTimestamp();
+        return lastMessageTime - firstMessageTime;
+    }
+
     public void run() {
         timingController.startReplay();
 
         while (messageIndex < messageBuffer.size()) {
             if (isPaused) {
                 try {
+                    try
+                    {
+                        int packets = (int) plugin.getSinceLastPacket();
+                        Static.getClient().getPacketWriter().setRemainingWrites(0);
+                        log.info("Packets since last: {}, Pending Writes: {}", Static.getClient().getPacketWriter().getRemainingWrites(), Static.getClient().getPacketWriter().getPendingWrites());
+                    }
+                    catch (NoSuchFieldException | ClassNotFoundException | IllegalAccessException e) {
+                        throw new RuntimeException(e);
+                    }
+
                     Thread.sleep(100);
                 } catch (InterruptedException e) {
                     log.warn("Pause interrupted", e);
@@ -103,6 +167,12 @@ public class RecordingReplayer extends Thread {
             messageSender.sendMessage(currentMessage, messageIndex);
             timingController.messageProcessed(currentMessage.getTimestamp());
             messageIndex++;
+
+            SwingUtilities.invokeLater(() -> {
+                if (plugin.getPluginPanel() != null) {
+                    plugin.getPluginPanel().updateReplayInfo();
+                }
+            });
         }
 
         log.info("Replay completed. Total messages sent: {}", messageIndex);
@@ -195,6 +265,11 @@ public class RecordingReplayer extends Thread {
             long timeDiff = newTimestamp - lastProcessedMessageTime;
             lastProcessedRealTime = currentTime - (long)(timeDiff / speedMultiplier);
             lastProcessedMessageTime = newTimestamp;
+        }
+
+        public void stepBackward(long newTimestamp) {
+            lastProcessedMessageTime = newTimestamp;
+            lastProcessedRealTime = System.currentTimeMillis();
         }
 
         public long calculateSleepTime(long messageTimestamp) {

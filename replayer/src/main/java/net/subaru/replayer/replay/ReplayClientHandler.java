@@ -36,7 +36,7 @@ public class ReplayClientHandler extends SimpleChannelInboundHandler<ByteBuf> {
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         log.info("Client connected: {}", ctx.channel());
         this.recordingParser = RecordingParser.load(this.recordingPath);
-        this.recordingReplayer = new RecordingReplayer(this.recordingParser, ctx.channel());
+        this.recordingReplayer = new RecordingReplayer(this.recordingParser, replayPlugin, ctx.channel());
         this.replayPlugin.setRecordingReplayer(this.recordingReplayer);
     }
 
