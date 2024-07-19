@@ -159,6 +159,12 @@ public class Panel extends PluginPanel {
         selectFolderButton.addActionListener(e -> {
             JFileChooser fileChooser = new JFileChooser();
             fileChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+
+            File defaultFolder = new File(plugin.getRecordingPath().toString());
+            if (defaultFolder.exists() && defaultFolder.isDirectory()) {
+                fileChooser.setCurrentDirectory(defaultFolder);
+            }
+
             int result = fileChooser.showOpenDialog(this);
             if (result == JFileChooser.APPROVE_OPTION) {
                 File selectedFile = fileChooser.getSelectedFile();

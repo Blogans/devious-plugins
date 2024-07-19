@@ -6,10 +6,12 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.LoginState;
+import net.runelite.api.GameState;
 import net.runelite.api.events.BeforeRender;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.packets.PacketWriter;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.game.WorldService;
@@ -56,6 +58,9 @@ public class ReplayPlugin extends Plugin
 
 	@Inject
 	private Client client;
+
+	@Inject
+	private ClientThread clientThread;
 
 	@Inject
 	private WorldService worldService;
@@ -215,6 +220,10 @@ public class ReplayPlugin extends Plugin
 			{
 				log.info("Starting replay server");
 				proxyServer.start(PORT, replayClientInitializer);
+
+				clientThread.invoke(() -> {
+					client.setGameState(GameState.LOGGING_IN);
+				});
 			}
 
 		} catch (Exception e) {
